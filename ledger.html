@@ -1139,7 +1139,7 @@ async function syncAmazonData() {
   if (statusEl) statusEl.textContent = 'Fetching live Amazon data...';
 
   try {
-    const asins = Object.keys(WATCHLIST.products || {});
+    const asins = (WATCHLIST.products || []).map(p => p.asin).filter(a => a);
     if (asins.length === 0) throw new Error('No products in watchlist');
 
     // Set a 90-second timeout for the sync (106 products take time)

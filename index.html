@@ -1139,8 +1139,8 @@ async function syncAmazonData() {
   if (statusEl) statusEl.textContent = 'Fetching live Amazon data...';
 
   try {
-    // Get all ASINs from watchlist
-    const asins = Object.keys(WATCHLIST.products || {});
+    // Get all ASINs from watchlist (extract asin field from each product)
+    const asins = (WATCHLIST.products || []).map(p => p.asin).filter(a => a);
 
     if (asins.length === 0) {
       throw new Error('No products in watchlist');
