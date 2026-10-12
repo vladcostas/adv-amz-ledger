@@ -1146,8 +1146,8 @@ async function syncAmazonData() {
       throw new Error('No products in watchlist');
     }
 
-    // Call sync endpoint
-    const url = SYNC_ENDPOINT + '?action=sync&asins=' + encodeURIComponent(JSON.stringify(asins));
+    // Call sync endpoint (send ASINs as comma-separated string)
+    const url = SYNC_ENDPOINT + '?action=sync&asins=' + encodeURIComponent(asins.join(','));
     const response = await fetch(url);
     const data = await response.json();
 
