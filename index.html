@@ -1146,9 +1146,9 @@ async function syncAmazonData() {
       throw new Error('No products in watchlist');
     }
 
-    // Set a 60-second timeout for the sync
+    // Set a 90-second timeout for the sync (106 products take time)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
 
     // Call sync endpoint (send ASINs as comma-separated string)
     const url = SYNC_ENDPOINT + '?action=sync&asins=' + encodeURIComponent(asins.join(','));
