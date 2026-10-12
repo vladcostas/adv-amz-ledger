@@ -1122,5 +1122,121 @@ const initialTab = document.querySelector(".tab-btn.active");
 if (initialTab && initialTab.dataset.tab === "monthly") {
   $("stats").style.display = "none";
 }
+
+// ========================================
+// AMAZON SYNC INTEGRATION
+// ========================================
+const SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzOIusP9vYhvsWIsmOQ1Zg__uYxJtPH4NZfIMwR8nEve70JNGrUUn1_FzmhZZc_IYfxPA/exec';
+
+async function syncAmazonData() {
+  const syncBtn = document.getElementById('sync-btn');
+  const statusEl = document.getElementById('sync-status');
+
+  if (!syncBtn) return;
+
+  syncBtn.disabled = true;
+  syncBtn.textContent = '⏳ Syncing...';
+  if (statusEl) statusEl.textContent = 'Fetching live Amazon data...';
+
+  try {
+    // Get all ASINs from watchlist
+    const asins = Object.keys(WATCHLIST.products || {});
+
+    if (asins.length === 0) {
+      throw new Error('No products in watchlist');
+    }
+
+    // Call sync endpoint
+    const url = SYNC_ENDPOINT + '?action=sync&asins=' + encodeURIComponent(JSON.stringify(asins));
+    const response = await fetch(url);
+    const data = await response.json();
+
+    // Store sync data in WATCHLIST
+    if (!WATCHLIST.amazonSync) WATCHLIST.amazonSync = {};
+    WATCHLIST.amazonSync = data;
+    localStorage.setItem("watchlist_data", JSON.stringify(WATCHLIST));
+
+    // Refresh table display
+    renderWatchlist();
+
+    if (statusEl) {
+      const successCount = Object.values(data).filter(d => d.success).length;
+      statusEl.textContent = `✅ Synced ${successCount}/${asins.length} products • ${new Date().toLocaleTimeString()}`;
+      statusEl.style.color = 'var(--pos)';
+    }
+
+  } catch (error) {
+    console.error('Sync error:', error);
+    if (statusEl) {
+      statusEl.textContent = '❌ Sync failed: ' + error.message;
+      statusEl.style.color = 'var(--neg)';
+    }
+  } finally {
+    syncBtn.disabled = false;
+    syncBtn.textContent = '🔄 Sync Amazon';
+  }
+}
+
+// Add sync button to watchlist tab
+function addSyncButton() {
+  const controls = document.querySelector('[data-controls="watchlist"]') || document.querySelector('.controls');
+
+  if (!controls || document.getElementById('sync-btn')) return;
+
+  const syncWrapper = document.createElement('div');
+  syncWrapper.style.cssText = 'display: flex; gap: 12px; align-items: center; margin-left: auto;';
+
+  const syncBtn = document.createElement('button');
+  syncBtn.id = 'sync-btn';
+  syncBtn.textContent = '🔄 Sync Amazon';
+  syncBtn.className = 'btn';
+  syncBtn.style.cssText = 'padding: 7px 14px; white-space: nowrap;';
+  syncBtn.onclick = syncAmazonData;
+
+  const statusSpan = document.createElement('span');
+  statusSpan.id = 'sync-status';
+  statusSpan.style.cssText = 'font-size: 12px; color: var(--muted); white-space: nowrap;';
+  statusSpan.textContent = 'Ready to sync';
+
+  syncWrapper.appendChild(syncBtn);
+  syncWrapper.appendChild(statusSpan);
+  controls.appendChild(syncWrapper);
+}
+
+// Call addSyncButton on page load
+setTimeout(addSyncButton, 100);
+
+// Modify renderWatchlist to show Amazon data if available
+const originalRenderWatchlist = renderWatchlist;
+renderWatchlist = function() {
+  originalRenderWatchlist.call(this);
+
+  // Add Amazon sync data to table rows
+  if (!WATCHLIST.amazonSync) return;
+
+  const rows = document.querySelectorAll('.watch tbody tr');
+  rows.forEach(row => {
+    const asinCell = row.querySelector('td:nth-child(3)');
+    if (!asinCell) return;
+
+    const asin = asinCell.textContent.trim();
+    const syncData = WATCHLIST.amazonSync[asin];
+
+    if (!syncData || !syncData.success) return;
+
+    // Highlight row if has sync data
+    row.style.backgroundColor = 'rgba(91, 122, 82, 0.08)';
+
+    // Add sync info tooltip
+    const infoCell = document.createElement('td');
+    infoCell.style.cssText = 'font-size: 11px; color: var(--olive); border-top: 1px dashed var(--line);';
+    infoCell.title = `Sales: ${syncData.sales} | Orders: ${syncData.orders} | Stock: ${syncData.stockFBA} | Synced: ${new Date(syncData.lastSync).toLocaleTimeString()}`;
+    infoCell.textContent = `📊 ${syncData.sales} sold`;
+
+    if (row.cells.length < 15) {
+      row.appendChild(infoCell);
+    }
+  });
+};
 </script>
 </body></html>
