@@ -939,7 +939,9 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") closeModal();
 });
 
-$("asof").textContent = `Updated ${META.asOf}`;
+// Use saved sync date from localStorage if available, otherwise use hardcoded date
+const lastSyncDate = localStorage.getItem('lastSyncDate');
+$("asof").textContent = `Updated ${lastSyncDate || META.asOf}`;
 $("invNote").textContent = META.invAsOf ? `Live from Amazon · ${META.invAsOf}` : "";
 update(); renderPools(); renderInv();
 
@@ -1167,8 +1169,16 @@ async function syncAmazonData() {
 
     if (statusEl) {
       const successCount = Object.values(data).filter(d => d.success).length;
-      statusEl.textContent = `✅ Synced ${successCount}/${asins.length} products • ${new Date().toLocaleTimeString()}`;
+      const now = new Date();
+      const dateStr = `${now.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()]} ${now.getFullYear()}, ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`;
+      statusEl.textContent = `✅ Synced ${successCount}/${asins.length} products • ${now.toLocaleTimeString()}`;
       statusEl.style.color = 'var(--pos)';
+      // Update the main date display
+      const asofEl = document.getElementById('asof');
+      if (asofEl) {
+        asofEl.textContent = `Updated ${dateStr}`;
+        localStorage.setItem('lastSyncDate', dateStr);
+      }
     }
 
     // Refresh page after 1 second to show new data
