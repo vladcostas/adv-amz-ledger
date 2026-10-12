@@ -1165,6 +1165,11 @@ async function syncAmazonData() {
       statusEl.style.color = 'var(--pos)';
     }
 
+    // Refresh page after 1 second to show new data
+    setTimeout(() => {
+      location.reload();
+    }, 1000);
+
   } catch (error) {
     console.error('Sync error:', error);
     if (statusEl) {
