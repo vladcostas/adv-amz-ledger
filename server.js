@@ -55,36 +55,34 @@ async function getProductMetrics(asin) {
   try {
     const token = await getAccessToken();
 
-    // Get sales metrics
-    const salesUrl = `${CONFIG.endpoint}/sales/v1/orderMetrics?marketplaceIds=${CONFIG.marketplaceId}&interval=DAY&granularity=TOTAL&timePeriodType=PREVIOUS_30_DAYS`;
+    // SP-API expects the LWA token in x-amz-access-token (an Authorization: Bearer header returns 403)
+    const headers = { 'x-amz-access-token': token };
+
+    // Get sales metrics for this ASIN over the last 30 days
+    const end = new Date();
+    const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const interval = `${start.toISOString().slice(0, 19)}Z--${end.toISOString().slice(0, 19)}Z`;
+    const salesUrl = `${CONFIG.endpoint}/sales/v1/orderMetrics?marketplaceIds=${CONFIG.marketplaceId}&interval=${encodeURIComponent(interval)}&granularity=Total&asin=${asin}`;
     console.log(`[SALES] Fetching for ${asin}...`);
 
-    const salesResponse = await axios.get(salesUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'x-amzn-requestid': Math.random().toString(36).substring(7)
-      }
-    });
+    const salesResponse = await axios.get(salesUrl, { headers });
 
-    let sales = 0, orders = 0, refunds = 0;
+    // orderMetrics has no refund figure; refunds stays 0 for the dashboard
+    let sales = 0, orders = 0, refunds = 0, revenue = 0, currency = null;
     if (salesResponse.data?.payload?.length > 0) {
       const metric = salesResponse.data.payload[0];
-      sales = metric.unitsSold || 0;
-      orders = metric.ordersCount || 0;
-      refunds = metric.refundsCount || 0;
+      sales = metric.unitCount || 0;
+      orders = metric.orderCount || 0;
+      revenue = Number(metric.totalSales?.amount) || 0;
+      currency = metric.totalSales?.currencyCode || null;
     }
-    console.log(`[SALES] ${asin}: units=${sales}, orders=${orders}, refunds=${refunds}`);
+    console.log(`[SALES] ${asin}: units=${sales}, orders=${orders}, revenue=${revenue} ${currency || ''}`);
 
     // Get inventory metrics
-    const inventoryUrl = `${CONFIG.endpoint}/fba/inventory/v1/summaries?marketplaceIds=${CONFIG.marketplaceId}&details=true`;
+    const inventoryUrl = `${CONFIG.endpoint}/fba/inventory/v1/summaries?granularityType=Marketplace&granularityId=${CONFIG.marketplaceId}&marketplaceIds=${CONFIG.marketplaceId}&details=true`;
     console.log(`[INVENTORY] Fetching for ${asin}...`);
 
-    const inventoryResponse = await axios.get(inventoryUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'x-amzn-requestid': Math.random().toString(36).substring(7)
-      }
-    });
+    const inventoryResponse = await axios.get(inventoryUrl, { headers });
 
     let stockFBA = 0, stockTotal = 0;
     if (inventoryResponse.data?.payload?.inventories) {
@@ -101,6 +99,8 @@ async function getProductMetrics(asin) {
       sales,
       orders,
       refunds,
+      revenue,
+      currency,
       stockFBA,
       stockTotal,
       lastSync: new Date().toISOString(),
