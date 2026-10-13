@@ -1,0 +1,9 @@
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+
+# Dependencies / logs
+node_modules/
+__pycache__/
+*.log
