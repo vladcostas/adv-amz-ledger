@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Live Amazon sales/stock saved by server.js
+amazon-data.json
+
 # Dependencies / logs
 node_modules/
 __pycache__/
